@@ -56,7 +56,7 @@ JWT_ADMIN_PASSWORD=your_jwt_admin_secret
 
 # 4. Start the server
 node server.js
-# The backend will run on http://localhost:3000
+# The backend will run on http://localhost:3000//yours
 
 #5. Run Frontends
   Open these files in a browser:
