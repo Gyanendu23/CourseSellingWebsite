@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📚 Course Selling Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --primary: #6a11cb;
+      --secondary: #2575fc;
+      --danger: #e74c3c;
+      --success: #2ecc71;
+      --light: #f5f5f5;
+      --dark: #333;
+      --card-bg: #ffffffee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    h1, h2 { text-align: center; color: var(--dark); }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-wrapper input {
+      padding-right: 40px;
+    }
+
+    .password-wrapper span {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background: var(--primary);
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+
+    button:hover { background: var(--secondary); }
+
+    .hidden { display: none; }
+
+    .course-card {
+      background: var(--light);
+      margin: 10px 0;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 Course Platform</h1>
+
+    <!-- Auth Section -->
+    <div id="authSection">
+      <input id="email" placeholder="Email" type="email" />
+      <div class="password-wrapper">
+        <input id="password" placeholder="Password" type="password" />
+        <span onclick="togglePassword()">👁️</span>
+      </div>
+      <input id="firstName" placeholder="First Name" />
+      <input id="lastName" placeholder="Last Name" />
+      <button onclick="signup()">Sign Up</button>
+      <button onclick="signin()">Sign In</button>
+      <p id="authMsg"></p>
+    </div>
+
+    <!-- Course Preview -->
+    <div id="courseSection" class="hidden">
+      <h2>All Courses</h2>
+      <div id="courseList"></div>
+      <button onclick="getPurchasedCourses()">🎓 View My Courses</button>
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+
+    <!-- My Courses -->
+    <div id="myCourses" class="hidden">
+      <h2>🎓 My Courses</h2>
+      <div id="myCourseList"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    const API = 'http://localhost:3000';
+
+    function togglePassword() {
+      const passwordInput = document.getElementById("password");
+      const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+      passwordInput.setAttribute("type", type);
+    }
+
+    function signup() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const firstName = document.getElementById("firstName").value;
+      const lastName = document.getElementById("lastName").value;
+
+      axios.post(`${API}/user/signup`, {
+        email,
+        password,
+        firstName,
+        lastName
+      }).then(res => {
+        document.getElementById("authMsg").innerText = res.data.message;
+      }).catch(err => {
+        document.getElementById("authMsg").innerText = err.response?.data?.message || "Signup failed.";
+      });
+    }
+
+    function signin() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      axios.post(`${API}/user/signin`, {
+        email,
+        password
+      }).then(res => {
+        localStorage.setItem("token", res.data.token);
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("courseSection").classList.remove("hidden");
+        getCourses();
+      }).catch(err => {
+        document.getElementById("authMsg").innerText = err.response?.data?.message || "Signin failed.";
+      });
+    }
+
+    function getCourses() {
+      axios.get(`${API}/course/preview`)
+        .then(res => {
+          const courseList = document.getElementById("courseList");
+          courseList.innerHTML = '';
+          res.data.courses.forEach(course => {
+            courseList.innerHTML += `
+              <div class="course-card">
+                <h3>${course.title}</h3>
+                <p>${course.description}</p>
+                <p><strong>₹${course.Price}</strong></p>
+                <button onclick="purchaseCourse('${course._id}')">Buy</button>
+              </div>
+            `;
+          });
+        });
+    }
+
+    function purchaseCourse(courseId) {
+      const token = localStorage.getItem("token");
+      axios.post(`${API}/course/purchase`, { courseId }, {
+        headers: { token }
+      }).then(() => {
+        alert("Purchased successfully!");
+      }).catch(err => {
+        alert(err.response?.data?.message || "Purchase failed.");
+      });
+    }
+
+    function getPurchasedCourses() {
+      const token = localStorage.getItem("token");
+      axios.get(`${API}/user/purchased_courses`, {
+        headers: { token }
+      }).then(res => {
+        document.getElementById("myCourses").classList.remove("hidden");
+        const list = document.getElementById("myCourseList");
+        list.innerHTML = '';
+        res.data.courseData.forEach(course => {
+          list.innerHTML += `
+            <div class="course-card">
+              <h3>${course.title}</h3>
+              <p>${course.description}</p>
+              <p><strong>₹${course.Price}</strong></p>
+            </div>
+          `;
+        });
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      location.reload();
+    }
+  </script>
+</body>
+</html>

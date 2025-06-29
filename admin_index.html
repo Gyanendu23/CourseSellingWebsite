@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📚 Admin Panel - Course Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #6a11cb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2575fc;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .course-card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 15px;
+      background-color: #fafafa;
+    }
+
+    .course-card img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .msg {
+      text-align: center;
+      color: green;
+      font-weight: bold;
+    }
+
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Admin Dashboard</h2>
+
+    <div class="section" id="authSection">
+      <input id="adminEmail" placeholder="Email" type="email">
+      <input id="adminPassword" placeholder="Password" type="password">
+      <input id="adminFirstName" placeholder="First Name">
+      <input id="adminLastName" placeholder="Last Name">
+      <button onclick="adminSignup()">🔐 Sign Up</button>
+      <button onclick="adminSignin()">🔓 Sign In</button>
+      <p id="authMsg" class="msg"></p>
+    </div>
+
+    <div class="section hidden" id="courseSection">
+      <h3>Create New Course</h3>
+      <input id="title" placeholder="Course Title">
+      <input id="description" placeholder="Description">
+      <input id="price" placeholder="Price" type="number">
+      <input id="imageUrl" placeholder="Image URL">
+      <button onclick="addCourse()">➕ Add Course</button>
+
+      <h3>Update Course</h3>
+      <input id="updateCourseId" placeholder="Course ID to Update">
+      <input id="updateTitle" placeholder="New Title">
+      <input id="updateDescription" placeholder="New Description">
+      <input id="updatePrice" placeholder="New Price" type="number">
+      <input id="updateImageUrl" placeholder="New Image URL">
+      <button onclick="updateCourse()">♻️ Update Course</button>
+      <p id="courseMsg" class="msg"></p>
+
+      <hr>
+
+      <h3>Your Courses</h3>
+      <div id="courseList"></div>
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    const API = "http://localhost:3000"; // change if deployed
+    const adminTokenKey = "adminToken";
+
+    function adminSignup() {
+      const email = document.getElementById("adminEmail").value;
+      const password = document.getElementById("adminPassword").value;
+      const firstName = document.getElementById("adminFirstName").value;
+      const lastName = document.getElementById("adminLastName").value;
+
+      axios.post(`${API}/admin/signup`, { email, password, firstName, lastName })
+        .then(res => {
+          document.getElementById("authMsg").innerText = res.data.message || "Signed up!";
+        }).catch(err => {
+          document.getElementById("authMsg").innerText = err.response?.data?.message || "Signup failed.";
+        });
+    }
+
+    function adminSignin() {
+      const email = document.getElementById("adminEmail").value;
+      const password = document.getElementById("adminPassword").value;
+
+      axios.post(`${API}/admin/signin`, { email, password })
+        .then(res => {
+          localStorage.setItem(adminTokenKey, res.data.token);
+          document.getElementById("authSection").classList.add("hidden");
+          document.getElementById("courseSection").classList.remove("hidden");
+          loadCourses();
+        }).catch(err => {
+          document.getElementById("authMsg").innerText = err.response?.data?.message || "Signin failed.";
+        });
+    }
+
+    function addCourse() {
+      const title = document.getElementById("title").value;
+      const description = document.getElementById("description").value;
+      const Price = document.getElementById("price").value;
+      const ImageUrl = document.getElementById("imageUrl").value;
+      const token = localStorage.getItem(adminTokenKey);
+
+      axios.post(`${API}/admin/course`, { title, description, Price, ImageUrl }, {
+        headers: { token }
+      }).then(res => {
+        document.getElementById("courseMsg").innerText = "Course Added!";
+        loadCourses();
+      }).catch(err => {
+        document.getElementById("courseMsg").innerText = "Error adding course.";
+      });
+    }
+
+    function updateCourse() {
+      const courseId = document.getElementById("updateCourseId").value;
+      const title = document.getElementById("updateTitle").value;
+      const description = document.getElementById("updateDescription").value;
+      const Price = document.getElementById("updatePrice").value;
+      const ImageUrl = document.getElementById("updateImageUrl").value;
+      const token = localStorage.getItem(adminTokenKey);
+
+      axios.put(`${API}/admin/course`, {
+        courseId, title, description, Price, ImageUrl
+      }, {
+        headers: { token }
+      }).then(res => {
+        document.getElementById("courseMsg").innerText = "Course Updated!";
+        loadCourses();
+      }).catch(err => {
+        document.getElementById("courseMsg").innerText = "Error updating course.";
+      });
+    }
+
+    function loadCourses() {
+      const token = localStorage.getItem(adminTokenKey);
+      axios.get(`${API}/admin/course/bulk`, {
+        headers: { token }
+      }).then(res => {
+        const courseList = document.getElementById("courseList");
+        courseList.innerHTML = '';
+        res.data.courses.forEach(course => {
+          courseList.innerHTML += `
+            <div class="course-card">
+              <img src="${course.ImageUrl}" alt="${course.title}" onerror="this.src='https://via.placeholder.com/300x150'">
+              <h4>${course.title}</h4>
+              <p>${course.description}</p>
+              <p><strong>₹${course.Price}</strong></p>
+              <small>ID: ${course._id}</small>
+            </div>
+          `;
+        });
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem(adminTokenKey);
+      location.reload();
+    }
+
+    // Auto login if token exists
+    window.onload = () => {
+      const token = localStorage.getItem(adminTokenKey);
+      if (token) {
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("courseSection").classList.remove("hidden");
+        loadCourses();
+      }
+    };
+  </script>
+</body>
+</html>
